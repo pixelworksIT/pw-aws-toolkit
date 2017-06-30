@@ -1,14 +1,30 @@
 #!/bin/bash
-# cchi@pixelworks.com wrote on June 26.2017  under  Apache 2.0 License
-#https://aws.amazon.com/blogs/security/how-to-create-a-custom-ami-with-encrypted-amazon-ebs-snapshots-and-share-it-with-other-accounts-and-regions/
-#  please setup your .aws/config like
-#  [profile us0 ] 
-#  region = us-west-2
-#  [profile us2 ]
-#  region = us-west-2
-#  please also setup .aws/credential with us0 and us2,   
-#  
 #
+# Copyright 2017 Pixelworks Inc.
+#
+# Author: Simon Cheng Chi <cchi@pixelworks.com>
+# Re-arranged by: Houyu Li <hyli@pixelworks.com>
+#
+# This script is to simplify the process of copying encrypted AMI from one
+# AWS account to another. The process is described at
+# https://aws.amazon.com/blogs/security/how-to-create-a-custom-ami-with-encrypted-amazon-ebs-snapshots-and-share-it-with-other-accounts-and-regions/
+# Before start, you should have AWS command line tool installed, and setup
+# profile with access / secret keys of IAM user with proper permission for
+# each AWS account.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 # please setup source profile and destination profile
 SRC_P=
 DST_P=
