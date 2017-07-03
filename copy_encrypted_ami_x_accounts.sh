@@ -62,23 +62,58 @@ KMS_ID_SRC="00000000-0000-0000-0000-000000000000"
 KMS_ID_DST="00000000-0000-0000-0000-000000000000"
 ## //
 
+#****************                   //                   ****************
 #**************** Do not modify anything below this line ****************
 
-date
+## Doing some checks before we start
+### Check source AMI image existance
+aws $AWSCLI_PROF_SRC ec2 describe-images \
+    --image-ids $AMI_ID_SRC  >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "We cannot find the source AMI with the giving account profile!" >&2
+    exit 2
+fi
 
-aws --profile $SRC_P ec2 describe-images --image-ids $SOURCE_AMI  &>/dev/null || \
-	{ echo "AMI not exisit" ; exit 0; }
+### Check AMI image existance in destination account with the same name 
+AMI_NAME_SRC=$(aws $AWSCLI_PROF_SRC ec2 describe-images \
+    --image-ids $AMI_ID_SRC \
+    --query Images[].Name \
+    --output text)
+AMI_ID_DST=$(aws $AWSCLI_PROF_DST ec2 describe-images \
+    --filter Name=name,Values="$AMI_NAME_SRC" \
+    --query Images[].ImageId \
+    --output text)
+if ! [ -z "$AMI_ID_DST" ]; then
+    echo "In destination account, we find an AMI with the same name!" >&2
+    exit 1
+fi
+## //
 
-NEW_NAME=$(aws --profile $SRC_P ec2 describe-images --image-ids $SOURCE_AMI --query Images[].Name --output text)
-NEW_DESCRIPTION=$(aws --profile $SRC_P ec2 describe-images --image-ids $SOURCE_AMI --query Images[].Description --output text)
+## Get some more information about source AMI
+### The description
+AMI_DESC_SRC=$(aws $AWSCLI_PROF_SRC ec2 describe-images \
+    --image-ids $AMI_ID_SRC \
+    --query Images[].Description \
+    --output text)
+### The snapshot ID
+### TODO: Need to deal with multiple snapshots in AMI
+TMP_F_AMI_SNAPS_SRC=`mktemp`
+aws $AWSCLI_PROF_SRC ec2 describe-images \
+    --image-ids $AMI_ID_SRC \
+    --query Images[].BlockDeviceMappings[].[DeviceName,Ebs.SnapshotId] \
+    --output text > "$TMP_F_AMI_SNAPS_SRC"
+### Example output
+#/dev/sda1	snap-5e27ef04
+#/dev/sdf	snap-103dbc49
+#/dev/sdg	snap-c9d89433
+#/dev/sdh	snap-9825e165
 
-## check if the name of AMI exist in DST 
-TMP_DST_AMI_ID=$(aws --profile $DST_P ec2 describe-images --filter Name=name,Values="$NEW_NAME" --query Images[].ImageId --output text)
-[ "$TMP_DST_AMI_ID" != "" ]  && { echo "AMI name exist in DST"; exit 0; }
 
 
 
-
+## Check if source key is the default master key.
+## If yes, we need to create a new key, and re-encrypt current AMI snapshot with the
+## new key.
 TMP_NAME=$SOURCE_AMI.tmp
 
 TMP_SOURCE_AMI=$(aws --profile $SRC_P ec2 copy-image --encrypted --kms-key-id $SOURCE_KMS_ID --name $TMP_NAME --source-image-id $SOURCE_AMI --source-region $SOURCE_REGION --query ImageId --output text)
