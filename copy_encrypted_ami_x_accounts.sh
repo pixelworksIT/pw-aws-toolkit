@@ -25,28 +25,44 @@
 # limitations under the License.
 #
 
-# please setup source profile and destination profile
-SRC_P=
-DST_P=
+#**************** Modify variables below to match your task ****************
 
-# SOURCE AWS ID and TARGET AWS ID.  
-SOURCE_ID=000000000000
-TARGET_ID=000000000000
-
-
-SOURCE_REGION=us-west-2
-TARGET_REGION=us-west-2
-
-# kms ID   somehow very hard to get ID from alias , So just least here.
-SOURCE_KMS_ID="00000000-0000-0000-0000-000000000000"
-TARGET_KMS_ID="00000000-0000-0000-0000-000000000000"
-
-if [ "$1" == "" ] || [[ "$1" == *"help"* ]] 
-then
-echo "Usage: $0 AMI-ID "; exit 0
-else
-SOURCE_AMI=$1
+## The source AMI ID.
+## This is required.
+AMI_ID_SRC=""
+if [ -z $AMI_ID_SRC ]; then
+    echo "You MUST specify the source AMI image ID!" >&2
+    exit 1
 fi
+## //
+
+## AWS command line tool profile for source account and destination account.
+## By default, we use source account profile for destination account.
+AWSCLI_PROF_SRC="--profile default"
+AWSCLI_PROF_DST="$AWSCLI_PROF_SRC"
+#AWSCLI_PROF_DST="--profile dest"
+## //
+
+## Account ID for source account and destination account.
+## By default, we use source account ID for destination account ID. 
+AWS_ACCT_ID_SRC=000000000000
+AWS_ACCT_ID_DST=$AWS_ACCT_ID_SRC
+#AWS_ACCT_ID_DST=000000000000
+## //
+
+## Region for copying AMI / snapshot from and to.
+## By default, we use same region.
+REGION_FROM="us-west-2"
+REGION_TO="$REGION_FROM"
+#REGION_TO="us-west-2"
+## //
+
+## KMS key ID for encrypting source and destination snapshots.
+KMS_ID_SRC="00000000-0000-0000-0000-000000000000"
+KMS_ID_DST="00000000-0000-0000-0000-000000000000"
+## //
+
+#**************** Do not modify anything below this line ****************
 
 date
 
