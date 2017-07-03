@@ -58,6 +58,8 @@ REGION_TO="$REGION_FROM"
 ## //
 
 ## KMS key ID for encrypting source and destination snapshots.
+## These keys must not be default master keys, thus can be granted to other AWS
+## account IDs.
 KMS_ID_SRC="00000000-0000-0000-0000-000000000000"
 KMS_ID_DST="00000000-0000-0000-0000-000000000000"
 ## //
@@ -85,7 +87,27 @@ AMI_ID_DST=$(aws $AWSCLI_PROF_DST ec2 describe-images \
     --output text)
 if ! [ -z "$AMI_ID_DST" ]; then
     echo "In destination account, we find an AMI with the same name!" >&2
-    exit 1
+    exit 2
+fi
+## //
+
+## Get some more information of KMS keys
+KMS_ARN_SRC=$(aws $AWSCLI_PROF_SRC kms describe-key \
+    --key-id $KMS_ID_SRC \
+    --query KeyMetadata.Arn \
+    --output text)
+if [ -z "$KMS_ARN_SRC" ]; then
+    echo "Provided KMS key not found! (SRC)" >&2
+    exit 2
+fi
+
+KMS_ARN_DST=$(aws $AWSCLI_PROF_DST kms describe-key \
+    --key-id $KMS_ID_DST \
+    --query KeyMetadata.Arn \
+    --output text)
+if [ -z "$KMS_ARN_DST" ]; then
+    echo "Provided KMS key not found! (DST)" >&2
+    exit 2
 fi
 ## //
 
@@ -108,8 +130,7 @@ aws $AWSCLI_PROF_SRC ec2 describe-images \
 #/dev/sdg	snap-c9d89433
 #/dev/sdh	snap-9825e165
 
-
-
+## //
 
 ## Check if source key is the default master key.
 ## If yes, we need to create a new key, and re-encrypt current AMI snapshot with the
