@@ -38,6 +38,11 @@ fi
 
 ## AWS command line tool profile for source account and destination account.
 ## By default, we use source account profile for destination account.
+## Make sure the profile of source account has proper permission to use the KMS key
+## provided below, and to work with AMIs and snapshots.
+## If destination account profile is different from the source account, then it's
+## better to use root account in the destination account to make use of the shared
+## key.
 AWSCLI_PROF_SRC="--profile default"
 AWSCLI_PROF_DST="$AWSCLI_PROF_SRC"
 #AWSCLI_PROF_DST="--profile dest"
