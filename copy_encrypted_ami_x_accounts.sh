@@ -30,7 +30,7 @@
 ## The source AMI ID.
 ## This is required.
 AMI_ID_SRC=""
-if [ -z $AMI_ID_SRC ]; then
+if [ -z "$AMI_ID_SRC" ]; then
     echo "You MUST specify the source AMI image ID!" >&2
     exit 1
 fi
@@ -70,7 +70,7 @@ KMS_ID_DST="00000000-0000-0000-0000-000000000000"
 ## Doing some checks before we start
 ### Check source AMI image existance
 aws $AWSCLI_PROF_SRC ec2 describe-images \
-    --image-ids $AMI_ID_SRC  >/dev/null 2>&1
+    --image-ids "$AMI_ID_SRC"  >/dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo "We cannot find the source AMI with the giving account profile!" >&2
     exit 2
@@ -78,7 +78,7 @@ fi
 
 ### Check AMI image existance in destination account with the same name 
 AMI_NAME_SRC=$(aws $AWSCLI_PROF_SRC ec2 describe-images \
-    --image-ids $AMI_ID_SRC \
+    --image-ids "$AMI_ID_SRC" \
     --query Images[].Name \
     --output text)
 AMI_ID_DST=$(aws $AWSCLI_PROF_DST ec2 describe-images \
@@ -93,7 +93,7 @@ fi
 
 ## Get some more information of KMS keys
 KMS_ARN_SRC=$(aws $AWSCLI_PROF_SRC kms describe-key \
-    --key-id $KMS_ID_SRC \
+    --key-id "$KMS_ID_SRC" \
     --query KeyMetadata.Arn \
     --output text)
 if [ -z "$KMS_ARN_SRC" ]; then
@@ -102,11 +102,30 @@ if [ -z "$KMS_ARN_SRC" ]; then
 fi
 
 KMS_ARN_DST=$(aws $AWSCLI_PROF_DST kms describe-key \
-    --key-id $KMS_ID_DST \
+    --key-id "$KMS_ID_DST" \
     --query KeyMetadata.Arn \
     --output text)
 if [ -z "$KMS_ARN_DST" ]; then
     echo "Provided KMS key not found! (DST)" >&2
+    exit 2
+fi
+
+### Check KEY type
+KMS_DESC_SRC=$(aws $AWSCLI_PROF_SRC kms describe-key \
+    --key-id "$KMS_ID_SRC" \
+    --query KeyMetadata.Description \
+    --output text |grep "Default master key")
+if ! [ -z "$KMS_DESC_SRC" ]; then
+    echo "A default master key provided! Quit. (SRC)" >&2
+    exit 2
+fi
+
+KMS_DESC_DST=$(aws $AWSCLI_PROF_DST kms describe-key \
+    --key-id "$KMS_ID_DST" \
+    --query KeyMetadata.Description \
+    --output text |grep "Default master key")
+if ! [ -z "$KMS_DESC_DST" ]; then
+    echo "A default master key provided! Quit. (DST)" >&2
     exit 2
 fi
 ## //
@@ -114,7 +133,7 @@ fi
 ## Get some more information about source AMI
 ### The description
 AMI_DESC_SRC=$(aws $AWSCLI_PROF_SRC ec2 describe-images \
-    --image-ids $AMI_ID_SRC \
+    --image-ids "$AMI_ID_SRC" \
     --query Images[].Description \
     --output text)
 ### The snapshot ID
@@ -124,7 +143,7 @@ aws $AWSCLI_PROF_SRC ec2 describe-images \
     --image-ids $AMI_ID_SRC \
     --query Images[].BlockDeviceMappings[].[DeviceName,Ebs.SnapshotId] \
     --output text > "$TMP_F_AMI_SNAPS_SRC"
-### Example output
+### Example content in $TMP_F_AMI_SNAPS_SRC
 #/dev/sda1	snap-5e27ef04
 #/dev/sdf	snap-103dbc49
 #/dev/sdg	snap-c9d89433
@@ -132,9 +151,39 @@ aws $AWSCLI_PROF_SRC ec2 describe-images \
 
 ## //
 
-## Check if source key is the default master key.
-## If yes, we need to create a new key, and re-encrypt current AMI snapshot with the
-## new key.
+## Re-encrypt current AMI snapshots with the key provided in source account to avoid
+## possible key / snapshot share issue
+### Copy and re-encrypt current snapshots using the provided source KMS key
+TMP_F_AMI_SNAPS_LCP=`mktemp`
+TMP_F_SNAP_IDS_LCP=`mktemp`
+while IFS='' read -r l_snapinfo || [[ -n "$l_snapinfo" ]]; do
+    AMI_SNAP_ID_SRC=`echo $l_snapinfo |awk '{ print $2 }'`
+    AMI_SNAP_ID_LCP=$(aws $AWSCLI_PROF_SRC ec2 copy-snapshot \
+        --source-region "$REGION_FROM" \
+        --source-snapshot-id "$AMI_SNAP_ID_SRC" \
+        --encrypted \
+        --kms-key-id "$KMS_ID_SRC" \
+        --query SnapshotId \
+        --output text)
+    echo "$l_snapinfo $AMI_SNAP_ID_LCP" >> "$TMP_F_AMI_SNAPS_LCP"
+    echo -n "$AMI_SNAP_ID_LCP " >> "$TMP_F_SNAP_IDS_LCP"
+done < "$TMP_F_AMI_SNAPS_SRC"
+rm -f "$TMP_F_AMI_SNAPS_SRC"
+
+### Waiting for the copy process to finish
+SNAP_IDS_LCP=`cat "$TMP_F_SNAP_IDS_LCP"`
+rm -f "$TMP_F_SNAP_IDS_LCP"
+
+SNAP_CP_DONE="any sting applies"
+while ! [ -z "$SNAP_CP_DONE" ]; do
+    sleep 5
+    SNAP_CP_DONE=$(aws $AWSCLI_PROF_SRC ec2 describe-snapshots \
+        --snapshot-ids $SNAP_IDS_LCP \
+        --query Snapshots[].State \
+        --output text |grep -v "completed")
+done
+## // Copy and re-encrypt current snapshots done.
+
 TMP_NAME=$SOURCE_AMI.tmp
 
 TMP_SOURCE_AMI=$(aws --profile $SRC_P ec2 copy-image --encrypted --kms-key-id $SOURCE_KMS_ID --name $TMP_NAME --source-image-id $SOURCE_AMI --source-region $SOURCE_REGION --query ImageId --output text)
