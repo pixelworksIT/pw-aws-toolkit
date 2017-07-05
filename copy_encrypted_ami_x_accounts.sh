@@ -280,7 +280,7 @@ AMI_BLOCK_MAP=""
 while IFS='' read -r l_snapinfo || [[ -n "$l_snapinfo" ]]; do
     AMI_BLOCK_DEV=`echo $l_snapinfo |awk '{ print $1 }'`
     AMI_BLOCK_SNAP_ID=`echo $l_snapinfo |awk '{ print $4 }'`
-    AMI_BLOCK_MAP="$AMI_BLOCK_MAP"" ""\"DeviceName=""$AMI_BLOCK_DEV"",Ebs={SnapshotId=""$AMI_BLOCK_SNAP_ID""}\""
+    AMI_BLOCK_MAP="$AMI_BLOCK_MAP"" ""DeviceName=""$AMI_BLOCK_DEV"",Ebs={SnapshotId=""$AMI_BLOCK_SNAP_ID""}"
 done < "$TMP_F_AMI_SNAPS_LCP_DST"
 
 AMI_NAME_DST="Copy of ""$AMI_NAME_SRC"
