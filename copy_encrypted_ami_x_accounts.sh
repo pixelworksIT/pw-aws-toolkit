@@ -291,7 +291,7 @@ AMI_ID_DST=$(aws $AWSCLI_PROF_DST --region "$REGION_TO" \
     --root-device-name "$AMI_ROOT_DEV" \
     --block-device-mappings $AMI_BLOCK_MAP \
     --description "$AMI_DESC_DST" \
-    --name $AMI_NAME_DST \
+    --name "$AMI_NAME_DST" \
     --virtualization-type hvm \
     --query ImageId \
     --output text)
