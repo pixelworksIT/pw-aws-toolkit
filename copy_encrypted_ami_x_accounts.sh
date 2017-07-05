@@ -307,6 +307,10 @@ rm -f "$TMP_F_AMI_SNAPS_LCP_DST"
 
 if [ -z "$AMI_ID_DST" ]; then
     echo "Create image in destination account failed!" >&2
+    for SNAP_ID_LCP_1 in $SNAP_IDS_LCP_DST; do
+        aws $AWSCLI_PROF_DST ec2 delete-snapshot \
+            --snapshot-id "$SNAP_ID_LCP_1"
+    done
     exit 3
 fi
 
