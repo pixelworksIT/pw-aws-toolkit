@@ -40,9 +40,8 @@ fi
 ## By default, we use source account profile for destination account.
 ## Make sure the profile of source account has proper permission to use the KMS key
 ## provided below, and to work with AMIs and snapshots.
-## If destination account profile is different from the source account, then it's
-## better to use root account in the destination account to make use of the shared
-## key.
+## If destination account profile is different from the source account, then use root
+## account in the destination account to make use of the shared key.
 AWSCLI_PROF_SRC="--profile default"
 AWSCLI_PROF_DST="$AWSCLI_PROF_SRC"
 #AWSCLI_PROF_DST="--profile dest"
@@ -65,6 +64,9 @@ REGION_TO="$REGION_FROM"
 ## KMS key ID for encrypting source and destination snapshots.
 ## These keys must not be default master keys, thus can be granted to other AWS
 ## account IDs.
+## ########
+## Befor start, make sure KMS_ID_SRC is already shared to destination account
+## ########
 KMS_ID_SRC="00000000-0000-0000-0000-000000000000"
 KMS_ID_DST="00000000-0000-0000-0000-000000000000"
 ## //
@@ -186,49 +188,132 @@ while ! [ -z "$SNAP_CP_DONE" ]; do
         --snapshot-ids $SNAP_IDS_LCP \
         --query Snapshots[].State \
         --output text |grep -v "completed")
+    SNAP_CP_ERR=`echo $SNAP_CP_DONE |grep "error"`
+    if ! [ -z "$SNAP_CP_ERR" ]; then
+        echo "Copy and re-encrypt encounters error. (SRC) Exit!" >&2
+        for SNAP_ID_LCP in $SNAP_IDS_LCP; do
+            aws $AWSCLI_PROF_SRC ec2 delete-snapshot \
+                --snapshot-id "$SNAP_ID_LCP"
+        done
+        rm -f "$TMP_F_AMI_SNAPS_LCP"
+        exit 3
+    fi
 done
 ## // Copy and re-encrypt current snapshots done.
 
-TMP_NAME=$SOURCE_AMI.tmp
+## Share the source KMS key to destination account
+## TODO: Add prerequisite notes to make sure source KMS key is shared to dest account
+## //
 
-TMP_SOURCE_AMI=$(aws --profile $SRC_P ec2 copy-image --encrypted --kms-key-id $SOURCE_KMS_ID --name $TMP_NAME --source-image-id $SOURCE_AMI --source-region $SOURCE_REGION --query ImageId --output text)
-
-
-
-PERCENTAGE=""
-while [ "$PERCENTAGE" != "100%" ]
-do
-sleep 10
-PERCENTAGE=$(aws --profile $SRC_P ec2 describe-snapshots --filters Name=description,Values=\*$TMP_SOURCE_AMI\* --query Snapshots[].Progress --output text)
+## Share the re-encrypted snapshots to destination account
+for SNAP_ID_LCP in $SNAP_IDS_LCP; do
+    aws $AWSCLI_PROF_SRC ec2 modify-snapshot-attribute \
+        --attribute createVolumePermission \
+        --operation-type add \
+        --snapshot-id "$SNAP_ID_LCP" \
+        --user-ids "$AWS_ACCT_ID_DST"
+    if [ $? -ne 0 ]; then
+        echo "Failed to share snapshot $SNAP_ID_LCP. Exit!" >&2
+        for SNAP_ID_LCP_0 in $SNAP_IDS_LCP; do
+            aws $AWSCLI_PROF_SRC ec2 delete-snapshot \
+                --snapshot-id "$SNAP_ID_LCP_0"
+        done
+        rm -f "$TMP_F_AMI_SNAPS_LCP"
+        exit 3
+    fi
 done
- 
-SRC_SNAP_ID=$(aws --profile $SRC_P ec2 describe-snapshots --filters Name=description,Values=\*$TMP_SOURCE_AMI\* --query Snapshots[].SnapshotId --output text)
+## //
 
-#echo "SNAP="$SRC_SNAP_ID
+## In the destination account, copy and re-encrypt the shared snapshot to destination
+## local.
+TMP_F_AMI_SNAPS_LCP_DST=`mktemp`
+TMP_F_SNAP_IDS_LCP_DST=`mktemp`
+while IFS='' read -r l_snapinfo || [[ -n "$l_snapinfo" ]]; do
+    AMI_SNAP_ID_SRC_LCP=`echo $l_snapinfo |awk '{ print $3 }'`
+    AMI_SNAP_ID_LCP_DST=$(aws $AWSCLI_PROF_DST ec2 copy-snapshot \
+        --source-region "$REGION_FROM" \
+        --source-snapshot-id "$AMI_SNAP_ID_SRC_LCP" \
+        --destination-region "$REGION_TO" \
+        --encrypted \
+        --kms-key-id "$KMS_ID_DST" \
+        --query SnapshotId \
+        --output text)
+    echo "$l_snapinfo $AMI_SNAP_ID_LCP_DST" >> "$TMP_F_AMI_SNAPS_LCP_DST"
+    echo -n "$AMI_SNAP_ID_LCP_DST " >> "$TMP_F_SNAP_IDS_LCP_DST"
+done < "$TMP_F_AMI_SNAPS_LCP"
+rm -f "$TMP_F_AMI_SNAPS_LCP"
 
-aws --profile $SRC_P ec2 modify-snapshot-attribute --attribute createVolumePermission --operation-type add --snapshot-id $SRC_SNAP_ID --user-ids $TARGET_ID
+### Waiting for the copy process to finish
+SNAP_IDS_LCP_DST=`cat "$TMP_F_SNAP_IDS_LCP_DST"`
+rm -f "$TMP_F_SNAP_IDS_LCP_DST"
 
-
-TMP_DESCRIPTION="simoncopy2"
-DST_SNAP_ID=$(aws --region $TARGET_REGION --profile $DST_P ec2 copy-snapshot --source-region $SOURCE_REGION --source-snapshot-id $SRC_SNAP_ID --description $TMP_DESCRIPTION --encrypted --kms-key-id $TARGET_KMS_ID --query SnapshotId --output text)
-
-PERCENTAGE=""
-while [ "$PERCENTAGE" != "100%" ]
-do
-sleep 10
-PERCENTAGE=$(aws --profile $DST_P ec2 describe-snapshots --snapshot-ids $DST_SNAP_ID --query Snapshots[].Progress --output text)
+SNAP_CP_DONE="any sting applies"
+while ! [ -z "$SNAP_CP_DONE" ]; do
+    sleep 5
+    SNAP_CP_DONE=$(aws $AWSCLI_PROF_DST ec2 describe-snapshots \
+        --snapshot-ids $SNAP_IDS_LCP_DST \
+        --query Snapshots[].State \
+        --output text |grep -v "completed")
+    SNAP_CP_ERR=`echo $SNAP_CP_DONE |grep "error"`
+    if ! [ -z "$SNAP_CP_ERR" ]; then
+        echo "Copy and re-encrypt encounters error. (DST) Exit!" >&2
+        for SNAP_ID_LCP_0 in $SNAP_IDS_LCP; do
+            aws $AWSCLI_PROF_SRC ec2 delete-snapshot \
+                --snapshot-id "$SNAP_ID_LCP_0"
+        done
+        for SNAP_ID_LCP_1 in $SNAP_IDS_LCP_DST; do
+            aws $AWSCLI_PROF_DST ec2 delete-snapshot \
+                --snapshot-id "$SNAP_ID_LCP_1"
+        done
+        rm -f "$TMP_F_AMI_SNAPS_LCP_DST"
+        exit 3
+    fi
 done
+## //
 
+## Register new AMI image in destination account
+### Get AMI root device name
+### The the first snapshot as root device
+AMI_ROOT_DEV=`head -n 1 "$TMP_F_AMI_SNAPS_LCP_DST" |awk '{ print $1 }'`
+### Prepare block device mapping string
+AMI_BLOCK_MAP=""
+while IFS='' read -r l_snapinfo || [[ -n "$l_snapinfo" ]]; do
+    AMI_BLOCK_DEV=`echo $l_snapinfo |awk '{ print $1 }'`
+    AMI_BLOCK_SNAP_ID=`echo $l_snapinfo |awk '{ print $4 }'`
+    AMI_BLOCK_MAP="$AMI_BLOCK_MAP"" ""\"DeviceName=""$AMI_BLOCK_DEV"",Ebs={SnapshotId=""$AMI_BLOCK_SNAP_ID""}\""
+done < "$TMP_F_AMI_SNAPS_LCP_DST"
 
+AMI_NAME_DST="Copy of ""$AMI_NAME_SRC"
+AMI_DESC_DST="Copy of ""$AMI_DESC_SRC"
+AMI_ID_DST=$(aws $AWSCLI_PROF_DST --region "$REGION_TO" \
+    ec2 register-image \
+    --architecture x86_64 \
+    --root-device-name "$AMI_ROOT_DEV" \
+    --block-device-mappings $AMI_BLOCK_MAP \
+    --description "$AMI_DESC_DST" \
+    --name $AMI_NAME_DST \
+    --virtualization-type hvm \
+    --query ImageId \
+    --output text)
+## //
 
-NEW_AMI_ID=$(aws --region $TARGET_REGION --profile $DST_P ec2 register-image --architecture x86_64 --root-device-name /dev/sda1 --block-device-mappings DeviceName=/dev/sda1,Ebs={SnapshotId=$DST_SNAP_ID} --description "$NEW_DESCRIPTION" --name $NEW_NAME --virtualization-type hvm --query ImageId --output text)
+## Clean up
+for SNAP_ID_LCP_0 in $SNAP_IDS_LCP; do
+    aws $AWSCLI_PROF_SRC ec2 delete-snapshot \
+        --snapshot-id "$SNAP_ID_LCP_0"
+done
+for SNAP_ID_LCP_1 in $SNAP_IDS_LCP_DST; do
+    aws $AWSCLI_PROF_DST ec2 delete-snapshot \
+        --snapshot-id "$SNAP_ID_LCP_1"
+done
+rm -f "$TMP_F_AMI_SNAPS_LCP_DST"
+## //
 
+if [ -z "$AMI_ID_DST" ]; then
+    echo "Create image in destination account failed!" >&2
+    exit 3
+fi
 
-echo $NEW_AMI_ID 
+echo "The new AMI image $AMI_ID_DST is created in target account."
 
-
-###now cleanup
-aws --profile $SRC_P ec2 deregister-image --image-id $TMP_SOURCE_AMI
-aws --profile $SRC_P ec2 delete-snapshot --snapshot-id $SRC_SNAP_ID
-
-date
+exit 0
