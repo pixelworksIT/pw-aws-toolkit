@@ -302,10 +302,6 @@ for SNAP_ID_LCP_0 in $SNAP_IDS_LCP; do
     aws $AWSCLI_PROF_SRC ec2 delete-snapshot \
         --snapshot-id "$SNAP_ID_LCP_0"
 done
-for SNAP_ID_LCP_1 in $SNAP_IDS_LCP_DST; do
-    aws $AWSCLI_PROF_DST ec2 delete-snapshot \
-        --snapshot-id "$SNAP_ID_LCP_1"
-done
 rm -f "$TMP_F_AMI_SNAPS_LCP_DST"
 ## //
 
