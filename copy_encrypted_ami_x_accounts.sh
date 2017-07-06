@@ -12,6 +12,8 @@
 # profile with access / secret keys of IAM user with proper permission for
 # each AWS account.
 #
+# For detailed instructions, see docs/copy_encrypted_ami_x_accounts.txt
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
