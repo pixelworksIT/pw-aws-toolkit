@@ -1,0 +1,66 @@
+Description:
+    This script is for copying AMI image from one AWS account to another AWS account.
+During the copy, the script will also encrypt the copied snapshot.
+    By running this script, we assume that the user has already having a PC with
+system which is capable to run AWS command line tool. And AWS command line tool is
+properly installed in the system.
+
+Instructions:
+    1.  $ cp copy_encrypted_ami_x_accounts.conf.dist \
+            copy_encrypted_ami_x_accounts.conf
+    2.  Find AWS account IDs of both source account and target account.
+        And update following variables in config file
+            AWS_ACCT_ID_SRC : the ID for source account
+            AWS_ACCT_ID_DST : the ID for target account
+    3.  Update following variables in config file to indicate proper region.
+            REGION_FROM :   the region where your source AMI image in, in the source
+                            account
+            REGION_TO   :   the region your source AMI image will be copied to, in the
+                            target account
+    4.  In both source and target AWS account, create an IAM account. Generate Access
+        Key and Secret Access Key for both accounts.
+    5.  Setup 2 different AWS command line profiles using command:
+        $ aws configure --profile <profile_name>
+        And update following variables in config file
+            AWSCLI_PROF_SRC : the profile represents the IAM user in source account
+            AWSCLI_PROF_DST : the profile represents the IAM user in target account
+    6.  Permission for IAM user in source account.
+        Attach policy "AmazonEC2FullAccess".
+    7.  Permission for IAM user in target account.
+        Attach policy "AmazonEC2FullAccess".
+        And attach following policy document as inline policy.
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "Stmt1499311128000",
+                    "Effect": "Allow",
+                    "Action": [
+                        "kms:CreateGrant",
+                        "kms:Decrypt",
+                        "kms:DescribeKey",
+                        "kms:Encrypt",
+                        "kms:GenerateDataKeyWithoutPlaintext"
+                    ],
+                    "Resource": [
+                        "*"
+                    ]
+                }
+            ]
+        }
+    8.  In the source account, pick a non-default KMS key for the copy. Allow the IAM
+        user you just created in the source account to use the key. Update
+        "KMS_ID_SRC" in the config file with the key ID. If there's no custom master
+        key, just create one.
+    9.  In the target account, pick a non-default KMS key for the copy. Allow the IAM
+        user you just created in the target account to use the key. Update
+        "KMS_ID_DST" in the config file with the key ID. If there's no custom master
+        key, just create one.
+    10. Run the script:
+        $ ./copy_encrypted_ami_x_accounts.sh <source_ami_id>
+        <source_ami_id> :   ID of the AMI image you want to copy from source account
+                            to target account
+
+References:
+ * https://aws.amazon.com/blogs/security/how-to-create-a-custom-ami-with-encrypted-amazon-ebs-snapshots-and-share-it-with-other-accounts-and-regions/
+ * https://aws.amazon.com/blogs/aws/new-cross-account-copying-of-encrypted-ebs-snapshots/
