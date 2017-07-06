@@ -6,6 +6,7 @@ system which is capable to run AWS command line tool. And AWS command line tool 
 properly installed in the system.
 
 Instructions:
+    *.  For setup accounts and keys, you may need help from your AWS administrator.
     1.  $ cp copy_encrypted_ami_x_accounts.conf.dist \
             copy_encrypted_ami_x_accounts.conf
     2.  Find AWS account IDs of both source account and target account.
