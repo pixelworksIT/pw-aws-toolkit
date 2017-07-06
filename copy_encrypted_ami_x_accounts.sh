@@ -37,21 +37,15 @@ fi
 ## //
 
 ## AWS command line tool profile for source account and destination account.
-## By default, we use source account profile for destination account.
-## Make sure the profile of source account has proper permission to use the KMS key
+## Make sure profiles of both accounts have proper permission to use the KMS key
 ## provided below, and to work with AMIs and snapshots.
-## If destination account profile is different from the source account, then use root
-## account in the destination account to make use of the shared key.
 AWSCLI_PROF_SRC="--profile default"
-AWSCLI_PROF_DST="$AWSCLI_PROF_SRC"
-#AWSCLI_PROF_DST="--profile dest"
+AWSCLI_PROF_DST="--profile dest"
 ## //
 
 ## Account ID for source account and destination account.
-## By default, we use source account ID for destination account ID. 
 AWS_ACCT_ID_SRC=000000000000
-AWS_ACCT_ID_DST=$AWS_ACCT_ID_SRC
-#AWS_ACCT_ID_DST=000000000000
+AWS_ACCT_ID_DST=000000000000
 ## //
 
 ## Region for copying AMI / snapshot from and to.
