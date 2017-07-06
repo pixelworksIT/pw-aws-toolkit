@@ -1,3 +1,6 @@
+Script:
+    copy_encrypted_ami_x_accounts.sh
+
 Description:
     This script is for copying AMI image from one AWS account to another AWS account.
 During the copy, the script will also encrypt the copied snapshot.
