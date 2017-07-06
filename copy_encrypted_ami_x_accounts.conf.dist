@@ -1,0 +1,32 @@
+#**************** Modify variables below to match your task ****************
+
+## AWS command line tool profile for source account and destination account.
+## Make sure profiles of both accounts have proper permission to use the KMS key
+## provided below, and to work with AMIs and snapshots.
+AWSCLI_PROF_SRC="--profile default"
+AWSCLI_PROF_DST="--profile dest"
+## //
+
+## Account ID for source account and destination account.
+AWS_ACCT_ID_SRC=000000000000
+AWS_ACCT_ID_DST=000000000000
+## //
+
+## Region for copying AMI / snapshot from and to.
+## By default, we use same region.
+REGION_FROM="us-west-2"
+REGION_TO="$REGION_FROM"
+#REGION_TO="us-west-2"
+## //
+
+## KMS key ID for encrypting source and destination snapshots.
+## These keys must not be default master keys, thus can be granted to other AWS
+## account IDs.
+## ########
+## Befor start, make sure KMS_ID_SRC is already shared to destination account
+## ########
+KMS_ID_SRC="00000000-0000-0000-0000-000000000000"
+KMS_ID_DST="00000000-0000-0000-0000-000000000000"
+## //
+
+#****************                   //                   ****************

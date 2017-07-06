@@ -25,48 +25,29 @@
 # limitations under the License.
 #
 
-#**************** Modify variables below to match your task ****************
-
-## The source AMI ID.
-## This is required.
-AMI_ID_SRC=""
-if [ -z "$AMI_ID_SRC" ]; then
-    echo "You MUST specify the source AMI image ID!" >&2
+## Check configuration files
+CONF_LOCAL="./copy_encrypted_ami_x_accounts.conf"
+if [ -f "$CONF_LOCAL" ]; then
+    . "$CONF_LOCAL"
+else
+    echo "Configuration file not found!" >&2
+    echo "Before the first run, do following to create the config file." >&2
+    echo "    $ cp copy_encrypted_ami_x_accounts.conf.dist \\" >&2
+    echo "            copy_encrypted_ami_x_accounts.conf" >&2
+    echo "Then modify variables in the config file to match your AWS accounts." >&2
     exit 1
 fi
 ## //
 
-## AWS command line tool profile for source account and destination account.
-## Make sure profiles of both accounts have proper permission to use the KMS key
-## provided below, and to work with AMIs and snapshots.
-AWSCLI_PROF_SRC="--profile default"
-AWSCLI_PROF_DST="--profile dest"
+## Get the only argument as source AMI ID to be copied.
+## Otherwise, print help message.
+if [ -z "$1" ] || [[ "$1" == *"help"* ]]; then
+    echo "Usage: $0 <source_ami_id>" >&2
+    exit 1
+else
+    AMI_ID_SRC=$1
+fi
 ## //
-
-## Account ID for source account and destination account.
-AWS_ACCT_ID_SRC=000000000000
-AWS_ACCT_ID_DST=000000000000
-## //
-
-## Region for copying AMI / snapshot from and to.
-## By default, we use same region.
-REGION_FROM="us-west-2"
-REGION_TO="$REGION_FROM"
-#REGION_TO="us-west-2"
-## //
-
-## KMS key ID for encrypting source and destination snapshots.
-## These keys must not be default master keys, thus can be granted to other AWS
-## account IDs.
-## ########
-## Befor start, make sure KMS_ID_SRC is already shared to destination account
-## ########
-KMS_ID_SRC="00000000-0000-0000-0000-000000000000"
-KMS_ID_DST="00000000-0000-0000-0000-000000000000"
-## //
-
-#****************                   //                   ****************
-#**************** Do not modify anything below this line ****************
 
 ## Doing some checks before we start
 ### Check source AMI image existance
