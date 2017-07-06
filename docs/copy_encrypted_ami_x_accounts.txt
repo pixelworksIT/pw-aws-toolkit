@@ -56,6 +56,7 @@ Instructions:
         user you just created in the source account to use the key. Update
         "KMS_ID_SRC" in the config file with the key ID. If there's no custom master
         key, just create one.
+        Also, add external account access to the target account on the web console.
     9.  In the target account, pick a non-default KMS key for the copy. Allow the IAM
         user you just created in the target account to use the key. Update
         "KMS_ID_DST" in the config file with the key ID. If there's no custom master
