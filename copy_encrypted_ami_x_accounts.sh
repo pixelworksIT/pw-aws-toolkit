@@ -260,8 +260,8 @@ while IFS='' read -r l_snapinfo || [[ -n "$l_snapinfo" ]]; do
     AMI_BLOCK_MAP="$AMI_BLOCK_MAP"" ""DeviceName=""$AMI_BLOCK_DEV"",Ebs={SnapshotId=""$AMI_BLOCK_SNAP_ID""}"
 done < "$TMP_F_AMI_SNAPS_LCP_DST"
 
-AMI_NAME_DST="Copy of ""$AMI_NAME_SRC"
-AMI_DESC_DST="Copy of ""$AMI_DESC_SRC"
+AMI_NAME_DST="$AMI_NAME_SRC"
+AMI_DESC_DST="$AMI_DESC_SRC"
 AMI_ID_DST=$(aws $AWSCLI_PROF_DST --region "$REGION_TO" \
     ec2 register-image \
     --architecture x86_64 \
