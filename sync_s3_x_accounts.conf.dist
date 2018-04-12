@@ -1,0 +1,26 @@
+#**************** Modify variables below to match your task ****************
+
+## AWS command line tool profile for source account and destination account.
+## Make sure profiles of both accounts have proper permission to work with target
+## S3 buckets.
+AWSCLI_PROF_SRC="--profile default"
+AWSCLI_PROF_DST="--profile dest"
+## //
+
+## Account ID for source account and destination account.
+AWS_ACCT_ID_SRC=000000000000
+AWS_ACCT_ID_DST=000000000000
+## //
+
+## Region for copying / creating S3 bucket.
+## By default, we use same region.
+REGION_FROM="us-west-2"
+REGION_TO="$REGION_FROM"
+#REGION_TO="us-west-2"
+## //
+
+## Suffix to the new bucket in the destination AWS account
+S3_BKT_DST_SUFF=$(echo $AWSCLI_PROF_DST |awk '{ print $2 }')
+## //
+
+#****************                   //                   ****************
