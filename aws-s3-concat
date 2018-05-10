@@ -38,13 +38,14 @@ $ tar -czvf - "<orig_big_file>"  |split -a 3 -b 100m - "test.tgz-" --filter 'aws
 
 USAGE:
 
-{prog} -b|--bucket <bucket> -P|--file-prefix <prefix> [-o|--output-file <file>] [-p|--profile <profile>] [-h|--help]
+{prog} -b|--bucket <bucket> -P|--file-prefix <prefix> [-l|--list-size <size>] [-o|--output-file <file>] [-p|--profile <profile>] [-h|--help]
 
-    -b|--bucket <bucket>        : S3 bucket name
-    -P|--file-prefix <prefix>   : Prefix to splitted files
-    -o|--output-file <file>     : Optional. If ommitted, concated file content will be printed to STDOUT
-    -p|--profile <profile>      : Optional. Use a named profile for AWS access
-    -h|--help                   : Optional. Print this usage
+    -b|--bucket <bucket>        : S3 bucket name.
+    -P|--file-prefix <prefix>   : Prefix to splitted files.
+    -l|--list-size <size>       : Optional. MaxKeys (> 0) for S3 list_objects(). Default 128.
+    -o|--output-file <file>     : Optional. If ommitted, concated file content will be printed to STDOUT.
+    -p|--profile <profile>      : Optional. Use a named profile for AWS access.
+    -h|--help                   : Optional. Print this usage.
 """.format(**msg_usage_vars)
     print(msg_usage, file = sys.stderr)
 
@@ -56,10 +57,11 @@ def main(argv):
     file_prefix = ""
     output_file = ""
     output_to_stdout = 1
+    maxkey_size = "128"
 
     # Dealing with input options / arguments
     try:
-        opts, args = getopt.getopt(argv, "b:P:o:p:h", ["bucket=", "file-prefix=", "output-file=", "profile=", "help"])
+        opts, args = getopt.getopt(argv, "b:P:l:o:p:h", ["bucket=", "file-prefix=", "list-size=", "output-file=", "profile=", "help"])
     except getopt.GetoptError:
         usage()
         sys.exit(2)
@@ -72,6 +74,8 @@ def main(argv):
             bucket = arg
         elif opt in ("-P", "--file-prefix"):
             file_prefix = arg
+        elif opt in ("-l", "--list-size"):
+            maxkey_size = arg
         elif opt in ("-o", "--output-file"):
             output_file = arg
             output_to_stdout = 0
@@ -90,9 +94,9 @@ def main(argv):
         usage()
         sys.exit(2)
 
-    # Check if output_file is an empty string
-    match_empty_output_file = re.match(r'^\s*$', output_file, re.M|re.I)
-    if output_to_stdout != 1 and match_empty_output_file:
+    # Check if maxkey_size is positive integer
+    match_int_maxkey_size = re.match(r'^\d+$', maxkey_size, re.M|re.I)
+    if not match_int_maxkey_size:
         usage()
         sys.exit(2)
 
@@ -107,7 +111,7 @@ def main(argv):
         ## Load list of target objects on S3
         target_objs = s3_cli.list_objects(
             Bucket = bucket,
-            MaxKeys = 128,
+            MaxKeys = int(maxkey_size),
             Prefix = file_prefix
         )
 
