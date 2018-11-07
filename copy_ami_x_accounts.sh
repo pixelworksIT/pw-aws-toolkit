@@ -57,7 +57,7 @@ if [ $? -ne 0 ]; then
     exit 2
 fi
 
-### Check AMI image existance in destination account with the same name 
+### Check AMI image existance in destination account with the same name
 AMI_NAME_SRC=$(aws $AWSCLI_PROF_SRC ec2 describe-images \
     --image-ids "$AMI_ID_SRC" \
     --query Images[].Name \
@@ -170,6 +170,7 @@ AMI_ID_DST=$(aws $AWSCLI_PROF_DST --region "$REGION_TO" \
     --description "$AMI_DESC_DST" \
     --name "$AMI_NAME_DST" \
     --virtualization-type hvm \
+    --ena-support \
     --query ImageId \
     --output text)
 ## //
