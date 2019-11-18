@@ -51,7 +51,7 @@ USAGE:
 
 def main(argv):
     # The default credential profile
-    sess_profile = "default"
+    sess_profile = None
     # Other arguments
     bucket = ""
     file_prefix = ""
@@ -103,7 +103,10 @@ def main(argv):
     # Connect AWS and create group
     try:
         ## Initialize boto3 session with give credential profile
-        sess = boto3.Session(profile_name = sess_profile)
+        if sess_profile:
+            sess = boto3.Session(profile_name = sess_profile)
+        else:
+            sess = boto3.Session()
 
         ## Create S3 client in the boto3 session
         s3_cli = sess.client("s3")
